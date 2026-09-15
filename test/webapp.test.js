@@ -32,10 +32,30 @@ test('webapp uses HandsetCond and follows display light/dark', () => {
 
 test('switch keys are green on and transparent off; monitors are green/red', () => {
   const css = fs.readFileSync(path.join(__dirname, '..', 'public', 'style.css'), 'utf8')
-  assert.match(css, /\.key\.switch\.on[\s\S]*background:\s*var\(--on\)/)
-  assert.match(css, /\.key\.switch\.off[\s\S]*background:\s*transparent/)
-  assert.match(css, /\.key\.monitor\.on[\s\S]*background:\s*var\(--on\)/)
-  assert.match(css, /\.key\.monitor\.off[\s\S]*background:\s*var\(--off\)/)
+  assert.match(css, /backdrop-filter:\s*blur/)
+  assert.match(css, /\.key\.switch\.on[\s\S]*background:\s*var\(--glass-on\)/)
+  assert.match(css, /\.key\.switch\.off[\s\S]*background:\s*var\(--glass-clear\)/)
+  assert.match(css, /\.key\.monitor\.on[\s\S]*background:\s*var\(--glass-on\)/)
+  assert.match(css, /\.key\.monitor\.off[\s\S]*background:\s*var\(--glass-off\)/)
+})
+
+test('keys use milk glass and a fixed label size on mobile and desktop', () => {
+  const css = fs.readFileSync(path.join(__dirname, '..', 'public', 'style.css'), 'utf8')
+  const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8')
+  assert.doesNotMatch(html, /glassPicker/)
+  assert.match(css, /--glass-on:\s*rgba\(46, 214, 110, 0\.7\)/)
+  assert.match(css, /\.key[\s\S]*font-size:\s*1\.55rem/)
+  assert.doesNotMatch(css, /\.key[\s\S]*font-size:\s*clamp/)
+})
+
+test('login form asks the browser to remember credentials', () => {
+  const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8')
+  const js = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.js'), 'utf8')
+  assert.match(html, /autocomplete="username"/)
+  assert.match(html, /autocomplete="current-password"/)
+  assert.match(html, /autocomplete="on"/)
+  assert.match(js, /mediation:\s*'required'/)
+  assert.match(js, /PasswordCredential/)
 })
 
 test('plugin source registers readonly status and write toggle', () => {

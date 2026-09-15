@@ -10,9 +10,10 @@ Mobile first. Light and dark follow the phone display mode (`prefers-color-schem
   - **Mode:** Switch (toggle) or Monitor (view)
   - **Label**
   - **Path** (under `vessels.self`)
-- Switch keys: green when `on` / `1` / `true` / `online`, transparent when `off` / `0` / `false` / `offline`
+- Switch keys: frosted milk glass, green when `on` / `1` / `true` / `online`, clear when `off` / `0` / `false` / `offline`
 - Monitor keys: green when on, red when off
-- Tapping a switch PUTs the opposite value, keeping the current type (`1`/`0`, `true`/`false`, `on`/`off`, `online`/`offline`)
+- Tapping a switch PUTs the opposite value on the live Signal K path, keeping the current type (`1`/`0`, `true`/`false`, `on`/`off`, `online`/`offline`)
+- If the path does not exist yet, the plugin creates it for this run (nothing is stored in plugin-data)
 
 ## Out
 

@@ -11,11 +11,11 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="theme-color" content="#0c0f14" media="(prefers-color-scheme: dark)" />
-    <meta name="theme-color" content="#eef1f5" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#e8eef6" media="(prefers-color-scheme: light)" />
     <title>Control Panel</title>
     <link rel="icon" href="icon.png" />
     <link rel="apple-touch-icon" href="icon.png" />
-    <link rel="stylesheet" href="style.css?v=20260915" />
+    <link rel="stylesheet" href="style.css?v=20260915milk" />
   </head>
   <body>
     <header>
@@ -26,20 +26,42 @@
       <div id="deck" class="deck"></div>
     </main>
     <footer>
-      <form id="loginForm" class="login-form" hidden>
-        <input id="loginUser" name="username" autocomplete="username" placeholder="user" />
-        <input
-          id="loginPass"
-          name="password"
-          type="password"
-          autocomplete="current-password"
-          placeholder="password"
-        />
+      <form
+        id="loginForm"
+        class="login-form"
+        method="post"
+        action="/signalk/v1/auth/login"
+        autocomplete="on"
+        hidden
+      >
+        <label>
+          User
+          <input
+            id="loginUser"
+            name="username"
+            type="text"
+            autocomplete="username"
+            autocapitalize="off"
+            autocorrect="off"
+            spellcheck="false"
+            required
+          />
+        </label>
+        <label>
+          Password
+          <input
+            id="loginPass"
+            name="password"
+            type="password"
+            autocomplete="current-password"
+            required
+          />
+        </label>
         <button type="submit">Log in</button>
         <span id="loginErr" class="error"></span>
       </form>
       <p id="loginWho" class="muted" hidden></p>
     </footer>
-    <script src="app.js?v=20260915"></script>
+    <script src="app.js?v=20260915milk"></script>
   </body>
 </html>

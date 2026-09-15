@@ -2,7 +2,7 @@
 
 const { isOn, resolvePutValue } = require('../lib/state')
 const { parseButtons, pluginSchema } = require('../lib/buttons')
-const { putSelfPath } = require('../lib/put')
+const { emitPath, putOrCreate } = require('../lib/put')
 
 const PLUGIN_ID = 'signalk-control-panel-plugin'
 
@@ -69,6 +69,13 @@ function parseId (value) {
   return n
 }
 
+function unwrapPut (v) {
+  if (v && typeof v === 'object' && !Array.isArray(v) && Object.prototype.hasOwnProperty.call(v, 'value')) {
+    return v.value
+  }
+  return v
+}
+
 module.exports = function (app) {
   const plugin = {}
   plugin.id = PLUGIN_ID
@@ -80,6 +87,7 @@ module.exports = function (app) {
   let started = false
   let values = Object.create(null)
   const unsubscribes = []
+  const owned = Object.create(null)
 
   plugin.schema = pluginSchema()
 
@@ -87,9 +95,11 @@ module.exports = function (app) {
     return parseButtons(options.buttons)
   }
 
-  function pathValue (path) {
-    if (Object.prototype.hasOwnProperty.call(values, path)) return values[path]
-    return readPath(app, path)
+  function pathValue (p) {
+    if (Object.prototype.hasOwnProperty.call(values, p) && values[p] !== undefined) {
+      return values[p]
+    }
+    return readPath(app, p)
   }
 
   function snapshot () {
@@ -112,6 +122,27 @@ module.exports = function (app) {
     }
   }
 
+  function remember (p, value) {
+    values[p] = value
+  }
+
+  function createPath (p, value) {
+    emitPath(app, PLUGIN_ID, p, value)
+    ownPath(p)
+  }
+
+  function ownPath (p) {
+    if (owned[p] || typeof app.registerPutHandler !== 'function') return
+    owned[p] = true
+    app.registerPutHandler('vessels.self', p, (context, skPath, v, cb) => {
+      const next = unwrapPut(v)
+      values[skPath] = next
+      emitPath(app, PLUGIN_ID, skPath, next)
+      if (cb) cb({ state: 'COMPLETED' })
+      return { state: 'PENDING' }
+    })
+  }
+
   function clearSubs () {
     while (unsubscribes.length) {
       const u = unsubscribes.pop()
@@ -121,7 +152,7 @@ module.exports = function (app) {
     }
   }
 
-  function subscribe () {
+  function restoreAndSubscribe () {
     clearSubs()
     values = Object.create(null)
     const buttons = currentButtons()
@@ -131,7 +162,10 @@ module.exports = function (app) {
       if (!button.path || seen[button.path]) return
       seen[button.path] = true
       paths.push(button.path)
-      values[button.path] = readPath(app, button.path)
+      const live = readPath(app, button.path)
+      if (live !== undefined) {
+        values[button.path] = live
+      }
     })
     if (!paths.length || !app.subscriptionmanager) return
     app.subscriptionmanager.subscribe(
@@ -172,15 +206,22 @@ module.exports = function (app) {
     }
     const current = pathValue(button.path)
     const next = resolvePutValue(requested, current)
-    await putSelfPath(app, PLUGIN_ID, button.path, next)
-    values[button.path] = next
+    const live = readPath(app, button.path)
+    if (live === undefined) {
+      createPath(button.path, next)
+      remember(button.path, next)
+      return snapshot()
+    }
+    const result = await putOrCreate(app, PLUGIN_ID, button.path, next)
+    if (result && result.created) ownPath(button.path)
+    remember(button.path, next)
     return snapshot()
   }
 
   plugin.start = function (opts) {
     options = opts || {}
     started = true
-    subscribe()
+    restoreAndSubscribe()
     if (app.setPluginStatus) {
       const n = currentButtons().length
       app.setPluginStatus(n === 1 ? '1 button' : n + ' buttons')
@@ -191,6 +232,7 @@ module.exports = function (app) {
     started = false
     options = {}
     values = Object.create(null)
+    Object.keys(owned).forEach((k) => { delete owned[k] })
     clearSubs()
   }
 

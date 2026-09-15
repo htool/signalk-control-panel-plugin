@@ -6,18 +6,29 @@ const assert = require('node:assert/strict')
 function makeApp (paths) {
   const store = Object.assign({}, paths)
   const puts = []
+  const emitted = []
+  const putHandlers = []
   return {
     debug: () => {},
     error: () => {},
     setPluginStatus: () => {},
     getSelfPath: (p) => store[p],
-    handleMessage: () => {},
+    handleMessage: (_id, delta) => {
+      emitted.push(delta)
+      const v = delta && delta.updates && delta.updates[0] && delta.updates[0].values && delta.updates[0].values[0]
+      if (v) store[v.path] = v.value
+    },
     putSelfPath: (p, v, cb) => {
       puts.push({ path: p, value: v })
       store[p] = v
       if (cb) cb(null)
     },
+    registerPutHandler: (ctx, p, fn) => {
+      putHandlers.push({ ctx, path: p, fn })
+    },
     puts,
+    emitted,
+    putHandlers,
     subscriptionmanager: {
       subscribe: (_sub, unsubscribes) => {
         unsubscribes.push(() => {})
@@ -153,5 +164,80 @@ describe('plugin lifecycle', () => {
     })
     assert.equal(bad.statusCode, 400)
     assert.match(bad.body.error, /monitor/i)
+  })
+
+  it('creates a missing live path on toggle and does not restore it after restart', async () => {
+    plugin.start({
+      buttons: [
+        { mode: 'switch', label: 'Vertrek mode', path: 'automations.helpers.depart_prep' }
+      ]
+    })
+    const routes = {}
+    const router = {
+      get () {},
+      put (p, fn) { routes['PUT ' + p] = fn }
+    }
+    plugin.registerWithRouter(router)
+
+    const ok = mockRes()
+    await new Promise((resolve) => {
+      const end = ok.end.bind(ok)
+      ok.end = (s) => { end(s); resolve() }
+      routes['PUT /buttons/:id'](
+        { params: { id: '0' }, body: { value: 'toggle' }, readableEnded: true },
+        ok
+      )
+    })
+    assert.equal(ok.body.buttons[0].on, true)
+    assert.equal(ok.body.buttons[0].persist, undefined)
+    assert.ok(app.emitted.length > 0)
+
+    plugin.stop()
+    app = makeApp({})
+    plugin = freshPlugin(app)
+    plugin.start({
+      buttons: [
+        { mode: 'switch', label: 'Vertrek mode', path: 'automations.helpers.depart_prep' }
+      ]
+    })
+    const status = mockRes()
+    const getRoutes = {}
+    plugin.registerWithRouter({
+      get (p, fn) { getRoutes['GET ' + p] = fn },
+      put () {}
+    })
+    getRoutes['GET /status']({}, status)
+    assert.equal(status.body.buttons[0].on, false)
+    assert.equal(status.body.buttons[0].value, null)
+  })
+
+  it('treats SK undefined-state PUT crash as success', async () => {
+    app.putSelfPath = (_p, v, cb) => {
+      app.puts.push({ path: _p, value: v })
+      const err = new TypeError("Cannot read properties of undefined (reading 'state')")
+      if (cb) cb(err)
+      return Promise.reject(err)
+    }
+    plugin.start({
+      buttons: [
+        { mode: 'switch', label: 'Vertrek mode', path: 'electrical.switches.starlink.state' }
+      ]
+    })
+    const routes = {}
+    plugin.registerWithRouter({
+      get () {},
+      put (p, fn) { routes['PUT ' + p] = fn }
+    })
+    const ok = mockRes()
+    await new Promise((resolve) => {
+      const end = ok.end.bind(ok)
+      ok.end = (s) => { end(s); resolve() }
+      routes['PUT /buttons/:id'](
+        { params: { id: '0' }, body: { value: 'toggle' }, readableEnded: true },
+        ok
+      )
+    })
+    assert.equal(ok.statusCode, 200)
+    assert.equal(ok.body.buttons[0].on, true)
   })
 })

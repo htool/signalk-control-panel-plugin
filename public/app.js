@@ -8,6 +8,7 @@ let authRequired = true
 let loginUser = ''
 let buttons = []
 let putting = null
+let askedBrowser = false
 
 function el (id) { return document.getElementById(id) }
 
@@ -29,6 +30,7 @@ function httpError (res, data, url) {
     authToken = ''
     sessionStorage.removeItem('skAuthToken')
     renderLogin()
+    askBrowserLogin()
     return new Error('Log in to Signal K to toggle switches')
   }
   return new Error((data && (data.error || data.message)) || res.status + ' ' + url)
@@ -62,6 +64,68 @@ function renderLogin () {
   form.hidden = !need
   who.hidden = !loggedIn
   if (loggedIn) who.textContent = loginUser ? 'Signed in as ' + loginUser : 'Signed in'
+}
+
+async function storeBrowserCredentials (username, password) {
+  if (!username || !password || !window.PasswordCredential || !navigator.credentials) return
+  try {
+    await navigator.credentials.store(new PasswordCredential({
+      id: username,
+      password: password,
+      name: username
+    }))
+  } catch (_) {}
+}
+
+async function promptBrowserCredentials () {
+  if (!navigator.credentials || typeof navigator.credentials.get !== 'function') return null
+  try {
+    const cred = await navigator.credentials.get({
+      password: true,
+      mediation: 'required'
+    })
+    if (cred && cred.password) {
+      return { username: cred.id, password: cred.password }
+    }
+  } catch (_) {}
+  return null
+}
+
+async function loginWith (username, password) {
+  const res = await fetch('/signalk/v1/auth/login', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password })
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(data.message || data.error || 'Login failed')
+  if (data.token) {
+    authToken = data.token
+    sessionStorage.setItem('skAuthToken', authToken)
+  }
+  loggedIn = true
+  loginUser = username
+  await storeBrowserCredentials(username, password)
+  renderLogin()
+  await loadStatus()
+}
+
+async function askBrowserLogin () {
+  if (askedBrowser || loggedIn || !authRequired) return
+  askedBrowser = true
+  const cred = await promptBrowserCredentials()
+  if (!cred) {
+    renderLogin()
+    return
+  }
+  try {
+    await loginWith(cred.username, cred.password)
+  } catch (err) {
+    askedBrowser = false
+    setStatus(err.message, true)
+    renderLogin()
+  }
 }
 
 async function checkLogin () {
@@ -147,30 +211,17 @@ el('loginForm').onsubmit = async (ev) => {
   const username = el('loginUser').value
   const password = el('loginPass').value
   try {
-    const res = await fetch('/signalk/v1/auth/login', {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password })
-    })
-    const data = await res.json().catch(() => ({}))
-    if (!res.ok) throw new Error(data.message || data.error || 'Login failed')
-    if (data.token) {
-      authToken = data.token
-      sessionStorage.setItem('skAuthToken', authToken)
-    }
-    el('loginPass').value = ''
-    loggedIn = true
-    loginUser = username
-    renderLogin()
-    await loadStatus()
+    await loginWith(username, password)
   } catch (err) {
     errEl.textContent = err.message
   }
 }
 
 checkLogin()
-  .then(() => loadStatus())
+  .then(async () => {
+    await loadStatus().catch((err) => setStatus(err.message, true))
+    if (authRequired && !loggedIn) await askBrowserLogin()
+  })
   .catch((err) => setStatus(err.message, true))
 
 setInterval(() => {

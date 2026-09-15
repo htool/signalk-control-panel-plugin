@@ -49,4 +49,5 @@ test('plugin schema exposes mode label and path per button', () => {
   assert.deepEqual(props.mode.enumNames, ['Switch (toggle)', 'Monitor (view)'])
   assert.equal(props.label.title, 'Label')
   assert.equal(props.path.title, 'Path')
+  assert.equal(props.persist, undefined)
 })
