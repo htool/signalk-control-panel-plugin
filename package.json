@@ -1,0 +1,36 @@
+{
+  "name": "signalk-control-panel-plugin",
+  "version": "0.0.1",
+  "description": "Stream Deck-style Signal K webapp for state switches and monitors",
+  "main": "plugin/index.js",
+  "keywords": [
+    "signalk-node-server-plugin",
+    "signalk-webapp",
+    "signalk-category-digital-switching"
+  ],
+  "license": "ISC",
+  "author": "hans@defect.org",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/htool/signalk-control-panel-plugin.git"
+  },
+  "bugs": {
+    "url": "https://github.com/htool/signalk-control-panel-plugin/issues"
+  },
+  "homepage": "https://github.com/htool/signalk-control-panel-plugin#readme",
+  "signalk": {
+    "appIcon": "icon.png",
+    "displayName": "Control Panel"
+  },
+  "signalk-plugin-enabled-by-default": false,
+  "files": [
+    "plugin",
+    "lib",
+    "public",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "node --test test/*.test.js && node scripts/test-npm-publish-check.js"
+  }
+}
