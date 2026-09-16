@@ -173,8 +173,8 @@ module.exports = function (app) {
         context: 'vessels.self',
         subscribe: paths.map((p) => ({
           path: p,
-          period: 200,
-          policy: 'instant'
+          policy: 'instant',
+          minPeriod: 200
         }))
       },
       unsubscribes,

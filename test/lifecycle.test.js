@@ -8,6 +8,7 @@ function makeApp (paths) {
   const puts = []
   const emitted = []
   const putHandlers = []
+  const subscriptions = []
   return {
     debug: () => {},
     error: () => {},
@@ -29,8 +30,10 @@ function makeApp (paths) {
     puts,
     emitted,
     putHandlers,
+    subscriptions,
     subscriptionmanager: {
-      subscribe: (_sub, unsubscribes) => {
+      subscribe: (sub, unsubscribes) => {
+        subscriptions.push(sub)
         unsubscribes.push(() => {})
       }
     }
@@ -101,6 +104,23 @@ describe('plugin lifecycle', () => {
     plugin.registerWithRouter(router)
     assert.ok(perms.includes('readwrite'))
     assert.ok(perms.includes('PUT /buttons/:id'))
+  })
+
+  it('subscribes with instant policy and minPeriod, not period', () => {
+    plugin.start({
+      buttons: [
+        { mode: 'switch', label: 'Starlink', path: 'electrical.switches.starlink.state' },
+        { mode: 'monitor', label: 'Internet', path: 'network.providers.starlink.status' }
+      ]
+    })
+    assert.equal(app.subscriptions.length, 1)
+    const rows = app.subscriptions[0].subscribe
+    assert.equal(rows.length, 2)
+    rows.forEach((row) => {
+      assert.equal(row.policy, 'instant')
+      assert.equal(row.minPeriod, 200)
+      assert.equal(row.period, undefined)
+    })
   })
 
   it('status snapshot uses live path values', () => {
