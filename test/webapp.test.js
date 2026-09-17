@@ -32,7 +32,7 @@ test('webapp uses HandsetCond and follows display light/dark', () => {
 
 test('switch keys are green on and transparent off; monitors are green/red', () => {
   const css = fs.readFileSync(path.join(__dirname, '..', 'public', 'style.css'), 'utf8')
-  assert.match(css, /backdrop-filter:\s*blur/)
+  assert.match(css, /backdrop-filter:\s*var\(--key-blur\)/)
   assert.match(css, /\.key\.switch\.on[\s\S]*background:\s*var\(--glass-on\)/)
   assert.match(css, /\.key\.switch\.off[\s\S]*background:\s*var\(--glass-clear\)/)
   assert.match(css, /\.key\.monitor\.on[\s\S]*background:\s*var\(--glass-on\)/)
@@ -48,14 +48,54 @@ test('keys use milk glass and a fixed label size on mobile and desktop', () => {
   assert.doesNotMatch(css, /\.key[\s\S]*font-size:\s*clamp/)
 })
 
-test('login form asks the browser to remember credentials', () => {
+test('key labels wrap at spaces, not mid-word', () => {
+  const css = fs.readFileSync(path.join(__dirname, '..', 'public', 'style.css'), 'utf8')
+  assert.match(css, /\.key \.label[\s\S]*word-break:\s*normal/)
+  assert.match(css, /\.key \.label[\s\S]*overflow-wrap:\s*normal/)
+  assert.match(css, /\.key \.label[\s\S]*hyphens:\s*none/)
+  assert.doesNotMatch(css, /word-break:\s*break-(?:word|all)/)
+  const js = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.js'), 'utf8')
+  assert.match(js, /function fitLabels/)
+  assert.match(js, /white-space:nowrap/)
+})
+
+test('phone keys fill the screen width in two or three columns', () => {
+  const js = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.js'), 'utf8')
+  const css = fs.readFileSync(path.join(__dirname, '..', 'public', 'style.css'), 'utf8')
+  assert.match(js, /function layoutKeys/)
+  assert.match(js, /function isPhoneWidth/)
+  assert.match(js, /w < 768/)
+  assert.match(css, /@media \(max-width:\s*48rem\)/)
+  assert.doesNotMatch(css, /aspect-ratio/)
+})
+
+test('webapp uses a device key and has no password login', () => {
   const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8')
   const js = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.js'), 'utf8')
-  assert.match(html, /autocomplete="username"/)
-  assert.match(html, /autocomplete="current-password"/)
-  assert.match(html, /autocomplete="on"/)
-  assert.match(js, /mediation:\s*'required'/)
-  assert.match(js, /PasswordCredential/)
+  assert.match(html, /devicePending/)
+  assert.doesNotMatch(html, /loginForm/)
+  assert.doesNotMatch(html, /autocomplete="username"/)
+  assert.doesNotMatch(js, /PasswordCredential/)
+  assert.doesNotMatch(js, /\/signalk\/v1\/auth\/login/)
+  assert.match(js, /\/signalk\/v1\/access\/requests/)
+})
+
+test('webapp is Zeus-safe and requests a Signal K device key', () => {
+  const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8')
+  const js = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.js'), 'utf8')
+  const css = fs.readFileSync(path.join(__dirname, '..', 'public', 'style.css'), 'utf8')
+  assert.match(html, /navico-store/)
+  assert.match(html, /IE=11/)
+  assert.match(js, /XMLHttpRequest/)
+  assert.match(js, /\/signalk\/v1\/access\/requests/)
+  assert.match(js, /permissions:\s*'readwrite'/)
+  assert.match(js, /Authorization',\s*'Bearer /)
+  assert.doesNotMatch(js, /\basync function\b/)
+  assert.doesNotMatch(js, /\bfetch\s*\(/)
+  assert.doesNotMatch(js, /=>/)
+  assert.match(css, /min-height:\s*100vh/)
+  assert.doesNotMatch(css, /aspect-ratio/)
+  assert.doesNotMatch(css, /grid-template-columns/)
 })
 
 test('plugin source registers readonly status and write toggle', () => {

@@ -23,10 +23,17 @@ Mobile first. Light and dark follow the phone display mode (`prefers-color-schem
 
 ## Webapp
 
-Webapps → **Control Panel**. Reads go through `/signalk/v1/api/signalk-control-panel-plugin/status`. Toggles use `PUT /plugins/signalk-control-panel-plugin/buttons/:id` and need a Signal K session.
+Webapps → **Control Panel**. Reads go through `GET /signalk/v1/api/signalk-control-panel-plugin/status` (Signal K 2.x readonly, Zeus-safe). Toggles prefer `PUT /plugins/signalk-control-panel-plugin/buttons/:id` with a session or device token, and fall back to `GET /signalk/v1/api/signalk-control-panel-plugin/buttons/:id/toggle`.
+
+The page is ES5 + `XMLHttpRequest` so Navico Zeus can run it as an MFD tile. On first open it `POST`s `/signalk/v1/access/requests` (`permissions: readwrite`). Approve **Control Panel** under Signal K → Security → Access Requests; the JWT is kept in `localStorage` and sent as `Authorization: Bearer`. There is no username/password form.
+
+Add the tile in `signalk-mfd-plugin` with its own extra IP (boatnet placeholder `192.168.3.10`):
+
+- URL: `http://192.168.3.10:3000/signalk-control-panel-plugin/?v=20260917device`
+- Icon: `http://192.168.3.10:3000/signalk-control-panel-plugin/icon.png`
+
+Reopen the Zeus tile after HTML cache-bust changes.
 
 ## Auto-publish
 
-GitHub Action `.github/workflows/release.yml` patch-bumps and publishes to npm at most once per UTC day when `plugin/`, `lib/`, or `public/` changed. Trusted Publisher (OIDC), workflow filename **must stay** `release.yml`.
-
-The first npm version cannot use OIDC. Publish `0.0.1` once from a logged-in machine, then add the trusted publisher for `htool/signalk-control-panel-plugin` / `release.yml`.
+GitHub Action `.github/workflows/release.yml` patch-bumps and publishes to npm at most once per UTC day when `plugin/`, `lib/`, or `public/` changed. Trusted Publisher (OIDC), workflow filename **must stay** `release.yml`. npm **0.0.1** is already on the registry.

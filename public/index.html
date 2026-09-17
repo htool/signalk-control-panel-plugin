@@ -3,10 +3,14 @@
   <head>
     <meta charset="utf-8" />
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    <meta http-equiv="X-UA-Compatible" content="IE=11.0000" />
     <meta
       name="viewport"
-      content="width=device-width, initial-scale=1, viewport-fit=cover"
+      content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no"
     />
+    <meta name="navico-store" content="mfd-insight-store" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -15,7 +19,7 @@
     <title>Control Panel</title>
     <link rel="icon" href="icon.png" />
     <link rel="apple-touch-icon" href="icon.png" />
-    <link rel="stylesheet" href="style.css?v=20260915milk" />
+    <link rel="stylesheet" href="style.css?v=20260917device" />
   </head>
   <body>
     <header>
@@ -26,42 +30,10 @@
       <div id="deck" class="deck"></div>
     </main>
     <footer>
-      <form
-        id="loginForm"
-        class="login-form"
-        method="post"
-        action="/signalk/v1/auth/login"
-        autocomplete="on"
-        hidden
-      >
-        <label>
-          User
-          <input
-            id="loginUser"
-            name="username"
-            type="text"
-            autocomplete="username"
-            autocapitalize="off"
-            autocorrect="off"
-            spellcheck="false"
-            required
-          />
-        </label>
-        <label>
-          Password
-          <input
-            id="loginPass"
-            name="password"
-            type="password"
-            autocomplete="current-password"
-            required
-          />
-        </label>
-        <button type="submit">Log in</button>
-        <span id="loginErr" class="error"></span>
-      </form>
-      <p id="loginWho" class="muted" hidden></p>
+      <p id="devicePending" class="muted is-hidden">
+        Approve this device in Signal K → Security → Access Requests
+      </p>
     </footer>
-    <script src="app.js?v=20260915milk"></script>
+    <script src="app.js?v=20260917device"></script>
   </body>
 </html>

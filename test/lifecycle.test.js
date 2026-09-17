@@ -260,4 +260,27 @@ describe('plugin lifecycle', () => {
     assert.equal(ok.statusCode, 200)
     assert.equal(ok.body.buttons[0].on, true)
   })
+
+  it('GET toggle on signalKApiRoutes flips a switch', async () => {
+    plugin.start({
+      buttons: [
+        { mode: 'switch', label: 'Starlink', path: 'electrical.switches.starlink.state' }
+      ]
+    })
+    const routes = {}
+    plugin.signalKApiRoutes({
+      get (p, fn) { routes['GET ' + p] = fn }
+    })
+    const ok = mockRes()
+    await new Promise((resolve) => {
+      const end = ok.end.bind(ok)
+      ok.end = (s) => { end(s); resolve() }
+      routes['GET /signalk-control-panel-plugin/buttons/:id/:state'](
+        { params: { id: '0', state: 'toggle' } },
+        ok
+      )
+    })
+    assert.equal(ok.body.buttons[0].on, true)
+    assert.equal(app.puts[0].value, 1)
+  })
 })
