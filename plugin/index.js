@@ -69,6 +69,10 @@ function parseId (value) {
   return n
 }
 
+function isDeviceSwitch (p) {
+  return String(p || '').startsWith('electrical.switches.')
+}
+
 function unwrapPut (v) {
   if (v && typeof v === 'object' && !Array.isArray(v) && Object.prototype.hasOwnProperty.call(v, 'value')) {
     return v.value
@@ -207,13 +211,13 @@ module.exports = function (app) {
     const current = pathValue(button.path)
     const next = resolvePutValue(requested, current)
     const live = readPath(app, button.path)
-    if (live === undefined) {
+    if (live === undefined && !isDeviceSwitch(button.path)) {
       createPath(button.path, next)
       remember(button.path, next)
       return snapshot()
     }
     const result = await putOrCreate(app, PLUGIN_ID, button.path, next)
-    if (result && result.created) ownPath(button.path)
+    if (result && result.created && !isDeviceSwitch(button.path)) ownPath(button.path)
     remember(button.path, next)
     return snapshot()
   }

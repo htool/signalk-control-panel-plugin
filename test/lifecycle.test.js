@@ -283,4 +283,50 @@ describe('plugin lifecycle', () => {
     assert.equal(ok.body.buttons[0].on, true)
     assert.equal(app.puts[0].value, 1)
   })
+
+  it('retries PUT with mqtt source when SK reports multiple sources', async () => {
+    app.getSelfPath = () => ({
+      value: 0,
+      $source: 'mqtt',
+      values: {
+        'signalk-control-panel-plugin': { value: 1 },
+        mqtt: { value: 0 }
+      }
+    })
+    const sources = []
+    app.putSelfPath = (p, v, cb, source) => {
+      sources.push(source || null)
+      app.puts.push({ path: p, value: v, source: source || null })
+      if (!source) {
+        const err = new Error('there are multiple sources for the given path, but no source was specified in the request')
+        err.statusCode = 400
+        if (cb) cb({ statusCode: 400, message: err.message })
+        return
+      }
+      if (cb) cb({ statusCode: 200 })
+    }
+    plugin.start({
+      buttons: [
+        { mode: 'switch', label: 'Plug', path: 'electrical.switches.plug.state' }
+      ]
+    })
+    const routes = {}
+    plugin.registerWithRouter({
+      get () {},
+      put (p, fn) { routes['PUT ' + p] = fn }
+    })
+    const ok = mockRes()
+    await new Promise((resolve) => {
+      const end = ok.end.bind(ok)
+      ok.end = (s) => { end(s); resolve() }
+      routes['PUT /buttons/:id'](
+        { params: { id: '0' }, body: { value: 1 }, readableEnded: true },
+        ok
+      )
+    })
+    assert.equal(ok.statusCode, 200)
+    assert.equal(ok.body.buttons[0].on, true)
+    assert.deepEqual(sources, [null, 'mqtt'])
+    assert.equal(app.putHandlers.length, 0)
+  })
 })
