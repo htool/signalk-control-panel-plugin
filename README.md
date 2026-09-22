@@ -10,6 +10,7 @@ Mobile first. Light and dark follow the phone display mode (`prefers-color-schem
   - **Mode:** Switch (toggle) or Monitor (view)
   - **Label**
   - **Path** (under `vessels.self`)
+  - **Slide to activate:** optional. On a phone the key is a full-width **red** slider; slide left to right to toggle (avoids accidental taps)
 - Switch keys: frosted milk glass, green when `on` / `1` / `true` / `online`, clear when `off` / `0` / `false` / `offline`
 - Monitor keys: green when on, red when off
 - Tapping a switch PUTs the opposite value on the live Signal K path, keeping the current type (`1`/`0`, `true`/`false`, `on`/`off`, `online`/`offline`)
@@ -29,7 +30,7 @@ The page is ES5 + `XMLHttpRequest` so Navico Zeus can run it as an MFD tile. On 
 
 Add the tile in `signalk-mfd-plugin` with its own extra IP (boatnet placeholder `192.168.3.10`):
 
-- URL: `http://192.168.3.10:3000/signalk-control-panel-plugin/?v=20260917device`
+- URL: `http://192.168.3.10:3000/signalk-control-panel-plugin/?v=20260922row`
 - Icon: `http://192.168.3.10:3000/signalk-control-panel-plugin/icon.png`
 
 Reopen the Zeus tile after HTML cache-bust changes.

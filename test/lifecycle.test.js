@@ -142,8 +142,10 @@ describe('plugin lifecycle', () => {
     assert.equal(res.body.buttons.length, 2)
     assert.equal(res.body.buttons[0].on, false)
     assert.equal(res.body.buttons[0].mode, 'switch')
+    assert.equal(res.body.buttons[0].slider, false)
     assert.equal(res.body.buttons[1].on, true)
     assert.equal(res.body.buttons[1].mode, 'monitor')
+    assert.equal(res.body.buttons[1].slider, false)
   })
 
   it('PUT toggles a switch and refuses a monitor', async () => {

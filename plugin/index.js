@@ -119,6 +119,7 @@ module.exports = function (app) {
           mode: button.mode,
           label: button.label,
           path: button.path,
+          slider: !!button.slider,
           value: raw === undefined ? null : raw,
           on: isOn(raw)
         }
