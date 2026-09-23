@@ -220,6 +220,10 @@ module.exports = function (app) {
     const result = await putOrCreate(app, PLUGIN_ID, button.path, next)
     if (result && result.created && !isDeviceSwitch(button.path)) ownPath(button.path)
     remember(button.path, next)
+    if (String(button.path).startsWith('automations.helpers.')) {
+      const liveAfter = readPath(app, button.path)
+      if (liveAfter !== undefined) remember(button.path, liveAfter)
+    }
     return snapshot()
   }
 

@@ -331,4 +331,38 @@ describe('plugin lifecycle', () => {
     assert.deepEqual(sources, [null, 'mqtt'])
     assert.equal(app.putHandlers.length, 0)
   })
+
+  it('snapshot follows the live path after PUT so pulse helpers can reset', async () => {
+    const live = { 'automations.helpers.teltonika_reboot': false }
+    app.getSelfPath = (p) => live[p]
+    app.putSelfPath = (p, v, cb) => {
+      app.puts.push({ path: p, value: v })
+      live[p] = v
+      live[p] = false
+      if (cb) cb(null)
+    }
+    plugin.start({
+      buttons: [
+        { mode: 'switch', label: 'Teltonika reboot', path: 'automations.helpers.teltonika_reboot' }
+      ]
+    })
+    const routes = {}
+    plugin.registerWithRouter({
+      get () {},
+      put (p, fn) { routes['PUT ' + p] = fn }
+    })
+    const ok = mockRes()
+    await new Promise((resolve) => {
+      const end = ok.end.bind(ok)
+      ok.end = (s) => { end(s); resolve() }
+      routes['PUT /buttons/:id'](
+        { params: { id: '0' }, body: { value: 'toggle' }, readableEnded: true },
+        ok
+      )
+    })
+    assert.equal(ok.statusCode, 200)
+    assert.equal(app.puts[0].value, true)
+    assert.equal(ok.body.buttons[0].on, false)
+    assert.equal(ok.body.buttons[0].value, false)
+  })
 })
