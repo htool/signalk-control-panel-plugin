@@ -332,6 +332,63 @@ describe('plugin lifecycle', () => {
     assert.equal(app.putHandlers.length, 0)
   })
 
+  it('shows the newest source when an older one arrives later', () => {
+    const node = {
+      value: 1,
+      $source: 'signalk-naviop-plugin',
+      timestamp: '2026-09-25T08:54:01.000Z',
+      values: {
+        'signalk-naviop-plugin': { value: 1, timestamp: '2026-09-25T08:54:01.000Z' },
+        'signalk-automation-plugin': { value: 0, timestamp: '2026-09-25T11:42:22.000Z' }
+      }
+    }
+    let onDelta = null
+    app.getSelfPath = () => node
+    app.subscriptionmanager.subscribe = (sub, unsubscribes, _err, cb) => {
+      app.subscriptions.push(sub)
+      onDelta = cb
+      unsubscribes.push(() => {})
+    }
+    plugin.start({
+      buttons: [
+        { mode: 'monitor', label: 'New grib files', path: 'automations.helpers.grib_update' }
+      ]
+    })
+    const routes = {}
+    plugin.registerWithRouter({
+      get (p, fn) { routes['GET ' + p] = fn },
+      put () {}
+    })
+    const before = mockRes()
+    routes['GET /status']({}, before)
+    assert.equal(before.body.buttons[0].value, 0)
+    assert.equal(before.body.buttons[0].on, false)
+    onDelta({
+      updates: [{
+        timestamp: '2026-09-25T08:54:01.000Z',
+        values: [{ path: 'automations.helpers.grib_update', value: 1 }]
+      }]
+    })
+    const after = mockRes()
+    routes['GET /status']({}, after)
+    assert.equal(after.body.buttons[0].value, 0)
+    assert.equal(after.body.buttons[0].on, false)
+    onDelta({
+      updates: [{
+        timestamp: '2026-09-26T14:10:00.000Z',
+        values: [{ path: 'automations.helpers.grib_update', value: 1 }]
+      }]
+    })
+    node.value = 0
+    node.$source = 'signalk-automation-plugin'
+    node.timestamp = '2026-09-26T13:57:13.430Z'
+    delete node.values
+    const gone = mockRes()
+    routes['GET /status']({}, gone)
+    assert.equal(gone.body.buttons[0].value, 0)
+    assert.equal(gone.body.buttons[0].on, false)
+  })
+
   it('snapshot follows the live path after PUT so pulse helpers can reset', async () => {
     const live = { 'automations.helpers.teltonika_reboot': false }
     app.getSelfPath = (p) => live[p]

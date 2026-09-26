@@ -1,6 +1,6 @@
 'use strict'
 
-const { isOn, resolvePutValue } = require('../lib/state')
+const { isOn, latestSource, resolvePutValue } = require('../lib/state')
 const { parseButtons, pluginSchema } = require('../lib/buttons')
 const { emitPath, putOrCreate } = require('../lib/put')
 
@@ -56,11 +56,7 @@ function readJson (req) {
 
 function readPath (app, p) {
   if (!p || typeof app.getSelfPath !== 'function') return undefined
-  const v = app.getSelfPath(p)
-  if (v && typeof v === 'object' && Object.prototype.hasOwnProperty.call(v, 'value')) {
-    return v.value
-  }
-  return v
+  return latestSource(app.getSelfPath(p)).value
 }
 
 function parseId (value) {
@@ -90,6 +86,8 @@ module.exports = function (app) {
   let options = {}
   let started = false
   let values = Object.create(null)
+  let seenAt = Object.create(null)
+  let held = Object.create(null)
   const unsubscribes = []
   const owned = Object.create(null)
 
@@ -100,10 +98,13 @@ module.exports = function (app) {
   }
 
   function pathValue (p) {
+    if (Object.prototype.hasOwnProperty.call(held, p)) return held[p]
+    const live = readPath(app, p)
+    if (live !== undefined) return live
     if (Object.prototype.hasOwnProperty.call(values, p) && values[p] !== undefined) {
       return values[p]
     }
-    return readPath(app, p)
+    return live
   }
 
   function snapshot () {
@@ -127,8 +128,12 @@ module.exports = function (app) {
     }
   }
 
-  function remember (p, value) {
+  function remember (p, value, timestamp) {
+    const ts = Date.parse(timestamp || '')
+    const prev = seenAt[p]
+    if (Number.isFinite(ts) && Number.isFinite(prev) && ts < prev) return
     values[p] = value
+    if (Number.isFinite(ts)) seenAt[p] = ts
   }
 
   function createPath (p, value) {
@@ -141,7 +146,7 @@ module.exports = function (app) {
     owned[p] = true
     app.registerPutHandler('vessels.self', p, (context, skPath, v, cb) => {
       const next = unwrapPut(v)
-      values[skPath] = next
+      remember(skPath, next)
       emitPath(app, PLUGIN_ID, skPath, next)
       if (cb) cb({ state: 'COMPLETED' })
       return { state: 'PENDING' }
@@ -160,6 +165,8 @@ module.exports = function (app) {
   function restoreAndSubscribe () {
     clearSubs()
     values = Object.create(null)
+    seenAt = Object.create(null)
+    held = Object.create(null)
     const buttons = currentButtons()
     const paths = []
     const seen = Object.create(null)
@@ -167,9 +174,9 @@ module.exports = function (app) {
       if (!button.path || seen[button.path]) return
       seen[button.path] = true
       paths.push(button.path)
-      const live = readPath(app, button.path)
-      if (live !== undefined) {
-        values[button.path] = live
+      if (typeof app.getSelfPath === 'function') {
+        const picked = latestSource(app.getSelfPath(button.path))
+        if (picked.value !== undefined) remember(button.path, picked.value, picked.timestamp)
       }
     })
     if (!paths.length || !app.subscriptionmanager) return
@@ -189,7 +196,7 @@ module.exports = function (app) {
       (delta) => {
         ;(delta.updates || []).forEach((update) => {
           ;(update.values || []).forEach((v) => {
-            if (v && v.path) values[v.path] = v.value
+            if (v && v.path) remember(v.path, v.value, update.timestamp)
           })
         })
       }
@@ -222,9 +229,15 @@ module.exports = function (app) {
     remember(button.path, next)
     if (String(button.path).startsWith('automations.helpers.')) {
       const liveAfter = readPath(app, button.path)
-      if (liveAfter !== undefined) remember(button.path, liveAfter)
+      if (liveAfter !== undefined) {
+        remember(button.path, liveAfter)
+        return snapshot()
+      }
     }
-    return snapshot()
+    held[button.path] = next
+    const body = snapshot()
+    delete held[button.path]
+    return body
   }
 
   plugin.start = function (opts) {
@@ -241,6 +254,8 @@ module.exports = function (app) {
     started = false
     options = {}
     values = Object.create(null)
+    seenAt = Object.create(null)
+    held = Object.create(null)
     Object.keys(owned).forEach((k) => { delete owned[k] })
     clearSubs()
   }

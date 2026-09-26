@@ -2,7 +2,7 @@
 
 const { test } = require('node:test')
 const assert = require('node:assert/strict')
-const { token, isOn, nextValue, resolvePutValue } = require('../lib/state')
+const { token, isOn, nextValue, latestSource, resolvePutValue } = require('../lib/state')
 
 test('on tokens include 1 true on online', () => {
   ;[1, true, '1', 'on', 'ON', 'true', 'True', 'online', 'ONLINE'].forEach((v) => {
@@ -35,6 +35,22 @@ test('nextValue keeps the current type', () => {
   assert.equal(nextValue('online'), 'offline')
   assert.equal(nextValue('1'), '0')
   assert.equal(nextValue(undefined), 1)
+})
+
+test('latestSource picks the newest timestamp when several sources share a path', () => {
+  const picked = latestSource({
+    value: 1,
+    $source: 'signalk-naviop-plugin',
+    timestamp: '2026-09-25T08:54:01.000Z',
+    values: {
+      'signalk-naviop-plugin': { value: 1, timestamp: '2026-09-25T08:54:01.000Z' },
+      'signalk-automation-plugin': { value: 0, timestamp: '2026-09-25T11:42:22.000Z' }
+    }
+  })
+  assert.equal(picked.value, 0)
+  assert.equal(picked.timestamp, '2026-09-25T11:42:22.000Z')
+  assert.equal(latestSource(0).value, 0)
+  assert.equal(latestSource({ value: false }).value, false)
 })
 
 test('resolvePutValue toggles or matches requested state', () => {
