@@ -56,7 +56,14 @@ test('key labels wrap at spaces, not mid-word', () => {
   assert.doesNotMatch(css, /word-break:\s*break-(?:word|all)/)
   const js = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.js'), 'utf8')
   assert.match(js, /function fitLabels/)
+  assert.match(js, /function scheduleFitLabels/)
   assert.match(js, /white-space:nowrap/)
+  assert.match(js, /blockFits/)
+  assert.match(js, /minSize = 0\.42/)
+  assert.match(js, /minSize = 1\.0/)
+  assert.match(js, /fullLine/)
+  assert.match(js, /document\.fonts/)
+  assert.match(js, /hasSliderClass\(key\)[\s\S]*lineHeight = \(key\.clientHeight/)
 })
 
 test('phone keys fill the screen width in two or three columns', () => {

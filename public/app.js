@@ -382,7 +382,7 @@ function renderDeck () {
   paintedSig = sig
   updateKeys()
   layoutKeys()
-  fitLabels()
+  scheduleFitLabels()
 }
 
 function isPhoneWidth () {
@@ -510,24 +510,54 @@ function layoutKeys () {
   }
 }
 
+function labelPadPx (lab) {
+  var out = { x: 18, y: 18 }
+  try {
+    var cs = window.getComputedStyle(lab)
+    out.x = (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0)
+    out.y = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0)
+    if (out.x < 12) out.x = 12
+    if (out.y < 12) out.y = 12
+  } catch (e) {}
+  return out
+}
+
 function fitLabels () {
   var keys = document.getElementsByClassName('key')
   var probe = document.createElement('span')
-  var i, key, lab, words, size, inner, j, longest
+  var box = document.createElement('div')
+  var i, key, lab, words, size, lo, hi, mid, innerW, innerH, j, longest, text, minSize, pad
   probe.style.cssText = 'position:absolute;left:-9999px;top:0;visibility:hidden;white-space:nowrap'
+  box.style.cssText =
+    'position:absolute;left:-9999px;top:0;visibility:hidden;white-space:normal;' +
+    'word-break:normal;overflow-wrap:normal;text-align:center;line-height:1.08;' +
+    'font-family:Handset, ui-sans-serif, system-ui, sans-serif'
   document.body.appendChild(probe)
+  document.body.appendChild(box)
   for (i = 0; i < keys.length; i++) {
     key = keys[i]
     lab = key.getElementsByClassName('label')[0]
     if (!lab) continue
-    inner = key.clientWidth - 16
-    if (hasSliderClass(key)) inner = key.clientWidth - 88
-    words = (lab.textContent || '').replace(/^\s+|\s+$/g, '').split(/\s+/)
-    size = key.clientWidth / 80
-    if (hasSliderClass(key)) size = 1.25
-    if (size > 1.55) size = 1.55
-    if (size < 0.95) size = 0.95
+    text = (lab.textContent || '').replace(/^\s+|\s+$/g, '')
+    if (!text) continue
+    words = text.split(/\s+/)
+    pad = labelPadPx(lab)
+    if (hasSliderClass(key)) {
+      innerW = key.clientWidth - 88
+      innerH = key.clientHeight
+      size = 1.25
+      minSize = 1.0
+    } else {
+      innerW = key.clientWidth - Math.ceil(pad.x) - 2
+      innerH = key.clientHeight - Math.ceil(pad.y) - 2
+      size = key.clientWidth / 90
+      if (size > 1.45) size = 1.45
+      minSize = 0.42
+    }
+    if (innerW < 24 || innerH < 24) continue
+    if (size < minSize) size = minSize
     probe.style.fontFamily = 'Handset, ui-sans-serif, system-ui, sans-serif'
+    box.style.width = innerW + 'px'
     function longestWord (fs) {
       longest = 0
       probe.style.fontSize = fs + 'rem'
@@ -537,12 +567,54 @@ function fitLabels () {
       }
       return longest
     }
-    while (longestWord(size) > inner && size > 0.95) {
-      size = size - 0.05
+    function fullLine (fs) {
+      probe.style.fontSize = fs + 'rem'
+      probe.textContent = text
+      return probe.offsetWidth
     }
+    function blockFits (fs) {
+      if (hasSliderClass(key)) return fullLine(fs) <= innerW
+      box.style.fontSize = fs + 'rem'
+      box.textContent = text
+      return box.offsetHeight <= innerH && longestWord(fs) <= innerW
+    }
+    if (!blockFits(size)) {
+      lo = minSize
+      hi = size
+      while (hi - lo > 0.02) {
+        mid = Math.round(((lo + hi) / 2) * 100) / 100
+        if (blockFits(mid)) lo = mid
+        else hi = mid
+      }
+      size = blockFits(hi) ? hi : lo
+    }
+    if (size < minSize) size = minSize
     lab.style.fontSize = size + 'rem'
+    if (hasSliderClass(key)) {
+      lab.style.lineHeight = (key.clientHeight || 72) + 'px'
+    } else {
+      lab.style.lineHeight = '1.08'
+    }
   }
   document.body.removeChild(probe)
+  document.body.removeChild(box)
+}
+
+function scheduleFitLabels () {
+  function run () {
+    layoutKeys()
+    fitLabels()
+  }
+  if (window.requestAnimationFrame) {
+    window.requestAnimationFrame(function () {
+      window.requestAnimationFrame(run)
+    })
+  } else {
+    setTimeout(run, 50)
+  }
+  if (document.fonts && document.fonts.ready && typeof document.fonts.ready.then === 'function') {
+    document.fonts.ready.then(run).catch(function () {})
+  }
 }
 
 function loadStatus (cb) {
@@ -722,7 +794,6 @@ setInterval(function () {
 
 if (window.addEventListener) {
   window.addEventListener('resize', function () {
-    layoutKeys()
-    fitLabels()
+    scheduleFitLabels()
   })
 }
