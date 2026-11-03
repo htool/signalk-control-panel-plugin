@@ -20,7 +20,11 @@
   "homepage": "https://github.com/htool/signalk-control-panel-plugin#readme",
   "signalk": {
     "appIcon": "icon.png",
-    "displayName": "Control Panel"
+    "displayName": "Control Panel",
+    "recommends": [
+      "signalk-automation-plugin",
+      "signalk-naviop-plugin"
+    ]
   },
   "signalk-plugin-enabled-by-default": false,
   "files": [
